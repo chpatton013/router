@@ -21,6 +21,7 @@ set -xeuo pipefail
 #       Example format: `path/to/file 644`
 CAPABILITIES=(
   ntp
+  unattended-upgrades
 )
 
 ROOT_DIR="$(builtin cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
