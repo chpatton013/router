@@ -1,0 +1,2 @@
+etc/ntp.conf 644
+etc/cron.daily/user.ntp-leap-seconds-list 755

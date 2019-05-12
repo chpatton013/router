@@ -1,0 +1,2 @@
+etc/ntp.conf ntp:ntp
+etc/cron.daily/user.ntp-leap-seconds-list root:root

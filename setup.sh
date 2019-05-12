@@ -20,6 +20,7 @@ set -xeuo pipefail
 #     * A list of file mode settings for files copied from config.d.
 #       Example format: `path/to/file 644`
 CAPABILITIES=(
+  ntp
 )
 
 ROOT_DIR="$(builtin cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
