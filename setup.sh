@@ -6,6 +6,8 @@ set -xeuo pipefail
 # Capability directories are expected to have some of the following contents:
 #   packages.list
 #     * A flat list of APT packages to install.
+#   services.list
+#     * A flat list of systemd services that provide the capability.
 #   setup.sh
 #     * An executable script that sets up the capability.
 #   config.d/
@@ -32,10 +34,11 @@ function install_capability_packages() {
   capability_root="$ROOT_DIR/$capability"
   package_list="$capability_root/packages.list"
   readonly capability capability_root package_list
+
   if [ -f "$package_list" ]; then
     local -a packages
-    while IFS="" read -r line || [[ -n $line ]]; do
-      packages+=("$line")
+    while IFS="" read -r package || [[ -n $package ]]; do
+      packages+=("$package")
     done <"$package_list"
     readonly -a packages
 
@@ -82,8 +85,8 @@ function copy_capability_config_files() {
   local -a config_dirs
   find "$config_root" -type d |
     xargs realpath --relative-to="$config_root" |
-    while IFS="" read -r line || [[ -n $line ]]; do
-      config_dirs+=("$line")
+    while IFS="" read -r config_dir || [[ -n $config_dir ]]; do
+      config_dirs+=("$config_dir")
     done
   readonly -a config_dirs
   if [ -n "${config_dirs[@]}" ]; then
@@ -94,8 +97,8 @@ function copy_capability_config_files() {
   local -a config_files
   find "$config_root" -type f |
     xargs realpath --relative-to="$config_root" |
-    while IFS="" read -r line || [[ -n $line ]]; do
-      config_files+=("$line")
+    while IFS="" read -r config_file || [[ -n $config_file ]]; do
+      config_files+=("$config_file")
     done
   readonly -a config_files
   if [ -n "${config_files[@]}" ]; then
@@ -128,6 +131,46 @@ function copy_capabilities_config_files() {
   done
 }
 
+function verify_service() {
+  local service
+  service="$1"
+  readonly service
+
+  echo Verify that the $service service started successfully.
+  for ((n = 0; n < 5; n++)); do
+    if systemctl is-active "$service"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+function activate_capability_services() {
+  local capability capability_root services_list
+  capability="$1"
+  capability_root="$ROOT_DIR/$capability"
+  services_list="$capability_root/services.list"
+  readonly capability capability_root services_list
+
+  if [ -f "$services_list" ]; then
+    while IFS="" read -r service || [[ -n $service ]]; do
+      echo Enable the $service service so it will run after a system restart.
+      systemctl enable "$service"
+
+      echo Restart the $service service to reload config changes.
+      systemctl restart "$service"
+
+      verify_service "$service"
+    done <"$services_list"
+  fi
+}
+
+function activate_capabilities_services() {
+  for capability in "${CAPABILITIES[@]}"; do
+    activate_capability_services "$capability"
+  done
+}
+
 function main() {
   if [[ "$(id --user)" != 0 ]]; then
     echo This script must be run as root! Exiting. >&2
@@ -137,6 +180,7 @@ function main() {
   install_capabilities_packages
   run_capabilities_setup_scripts
   copy_capabilities_config_files
+  activate_capabilities_services
 }
 
 main
