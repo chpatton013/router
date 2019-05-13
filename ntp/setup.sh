@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+tmpfile="$(mktemp)"
+
 echo Download the current listing of leap seconds from IETF to a temp file.
 wget \
   --no-cache \
-  --output-document=/tmp/leap-seconds.list \
+  --output-document="$tmpfile" \
   https://www.ietf.org/timezones/data/leap-seconds.list
 
 echo Ensure the leap seconds file is not empty.
-test -s /tmp/leap-seconds.list
+test -s "$tmpfile"
 
 echo Make the temp file usable by the ntp user.
-chown ntp:ntp /tmp/leap-seconds.list
-chmod 644 /tmp/leap-seconds.list
+chown ntp:ntp "$tmpfile"
+chmod 644 "$tmpfile"
 
 echo Overwrite the old leap seconds listing.
-mv /tmp/leap-seconds.list /var/lib/ntp/leap
+mv "$tmpfile" ${LEAP_SECONDS_FILE}
