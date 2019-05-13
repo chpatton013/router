@@ -8,6 +8,11 @@ set -xeuo pipefail
 #     * A flat list of APT packages to install.
 #   services.list
 #     * A flat list of systemd services that provide the capability.
+#   env.vars
+#     * A list of variable assignments of the form `NAME=value`. There should
+#       only be one assignment per-line of this file. Variables in this file
+#       will be substituted in `setup.sh`, `config.d/*`, `config.owner`, and
+#       `config.mode` files.
 #   setup.sh
 #     * An executable script that sets up the capability.
 #   config.d/
@@ -56,16 +61,53 @@ function install_capabilities_packages() {
   done
 }
 
+function eval_subst_file() {
+  local env_file input_file output_file
+  env_file="$1"
+  input_file="$2"
+  output_file="$3"
+  readonly env_file input_file output_file
+
+  local -a var_formats var_assignments
+  while IFS="" read -r line || [[ -n $line ]]; do
+    var_name="${line%=*}"
+    var_value="${line##*=}"
+    var_formats+=("\${$var_name}")
+    var_assignments+=("$var_name=$var_value")
+  done <"$env_file"
+  readonly -a var_formats var_assignments
+
+  (
+    export "${var_assignments[@]}"
+    envsubst "${var_formats[*]}" <"$input_file" >"$output_file"
+    chown --reference="$input_file" "$output_file"
+    chmod --reference="$input_file" "$output_file"
+  )
+  echo "$output_file"
+}
+
 function run_capability_setup_script() {
-  local capability capability_root setup_script
+  local capability capability_root env_file setup_script
   capability="$1"
   capability_root="$ROOT_DIR/$capability"
+  env_file="$capability_root/env.vars"
   setup_script="$capability_root/setup.sh"
-  readonly capability capability_root setup_script
+  readonly capability capability_root env_file setup_script
 
-  if [ -f "$setup_script" ]; then
+  local eval_setup_script
+  if [ -f "$env_file" ] && [ -f "$setup_script" ]; then
+    echo Generating setup script for $capability.
+    eval_setup_script="$(
+      eval_subst_file "$env_file" "$setup_script" "$(mktemp)"
+    )"
+  else
+    eval_setup_script="$setup_script"
+  fi
+  readonly eval_setup_script
+
+  if [ -f "$eval_setup_script" ]; then
     echo Running setup script for capability $capability.
-    "$setup_script"
+    "$eval_setup_script"
   fi
 }
 
@@ -75,7 +117,7 @@ function run_capabilities_setup_scripts() {
   done
 }
 
-function copy_capability_config_files() {
+function create_capability_config_dirs() {
   local capability capability_root config_root
   capability="$1"
   capability_root="$ROOT_DIR/$capability"
@@ -89,10 +131,22 @@ function copy_capability_config_files() {
       config_dirs+=("$config_dir")
     done
   readonly -a config_dirs
+
   if [ -n "${config_dirs[@]}" ]; then
     echo Creating config file directories for capability $capability.
-    echo "${config_dirs[@]}" | xargs -I{} mkdir --parents /{}
+    for config_dir in "${config_dirs[@]}"; do
+      mkdir --parents "/$config_dir"
+    done
   fi
+}
+
+function create_capability_config_files() {
+  local capability capability_root env_file config_root
+  capability="$1"
+  capability_root="$ROOT_DIR/$capability"
+  env_file="$capability_root/env.vars"
+  config_root="$capability_root/config.d"
+  readonly capability capability_root env_file config_root
 
   local -a config_files
   find "$config_root" -type f |
@@ -101,28 +155,79 @@ function copy_capability_config_files() {
       config_files+=("$config_file")
     done
   readonly -a config_files
+
   if [ -n "${config_files[@]}" ]; then
     echo Copying config files for capability $capability.
-    echo "${config_files[@]}" | xargs -I{} cp "$capability_root/{}" /{}
+    for config_file in "${config_files[@]}"; do
+      if [ -f "$env_file" ]; then
+        eval_subst_file "$env_file" \
+          "$capability_root/$config_file" "/$config_file"
+      else
+        cp "$capability_root/$config_file" "/$config_file"
+      fi
+    done
+  fi
+}
+
+function set_capability_config_files_owners() {
+  local capability capability_root env_file owners_file
+  capability="$1"
+  capability_root="$ROOT_DIR/$capability"
+  env_file="$capability_root/env.vars"
+  owners_file="$capability_root/config.owner"
+  readonly capability capability_root env_file owners_file
+
+  local eval_owners_file
+  if [ -f "$env_file" ] && [ -f "$owners_file" ]; then
+    eval_owners_file="$(eval_subst_file "$env_file" "$owners_file" "$(mktemp)")"
+  else
+    eval_owners_file="$owners_file"
   fi
 
-  if [ -f "$capability_root/config.owner" ]; then
+  if [ -f "$eval_owners_file" ]; then
     echo Setting config file owner for capability $capability.
     while IFS="" read -r line || [[ -n $line ]]; do
       file_path="/${line% *}"
       file_owner="${line##* }"
       chown "$file_owner" "$file_path"
-    done <"$capability_root/config.owner"
+    done <"$eval_owners_file"
+  fi
+}
+
+function set_capability_config_files_modes() {
+  local capability capability_root env_file modes_file
+  capability="$1"
+  capability_root="$ROOT_DIR/$capability"
+  env_file="$capability_root/env.vars"
+  modes_file="$capability_root/config.mode"
+  readonly capability capability_root env_file modes_file
+
+  local eval_modes_file
+  if [ -f "$env_file" ] && [ -f "$modes_file" ]; then
+    eval_modes_file="$(eval_subst_file "$env_file" "$modes_file" "$(mktemp)")"
+  else
+    eval_modes_file="$modes_file"
   fi
 
-  if [ -f "$capability_root/config.mode" ]; then
+  if [ -f "$eval_modes_file" ]; then
     echo Setting config file mode for capability $capability.
     while IFS="" read -r line || [[ -n $line ]]; do
       file_path="/${line% *}"
       file_mode="${line##* }"
       chmod "$file_mode" "$file_path"
-    done <"$capability_root/config.mode"
+    done <"$modes_file"
   fi
+}
+
+function copy_capability_config_files() {
+  local capability
+  capability="$1"
+  readonly capability
+
+  create_capability_config_dirs "$capability"
+  create_capability_config_files "$capability"
+  set_capability_config_files_owners "$capability"
+  set_capability_config_files_modes "$capability"
 }
 
 function copy_capabilities_config_files() {
