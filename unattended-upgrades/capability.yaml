@@ -1,0 +1,18 @@
+packages:
+- apt-config-auto-update
+- apt-listchanges
+- mailutils
+- unattended-upgrades
+files:
+  /etc/apt/listchanges.conf:
+    mode: 644
+    user: root
+    group: root
+  /etc/apt/apt.conf.d/20auto-upgrades:
+    mode: 644
+    user: root
+    group: root
+  /etc/apt/apt.conf.d/50unattended-upgrades:
+    mode: 644
+    user: root
+    group: root

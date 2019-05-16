@@ -1,0 +1,17 @@
+packages:
+- ntp
+vars:
+  DRIFT_FILE: /var/lib/ntp/drift
+  LEAP_SECONDS_FILE: /var/lib/ntp/leap
+  STATS_DIR: /var/log/ntpstats/
+files:
+  /etc/ntp.conf:
+    mode: 0644
+    user: ntp
+    group: ntp
+  /etc/cron.daily/user.ntp-leap-seconds-list:
+    mode: 0755
+    user: root
+    group: root
+services:
+- ntp.service

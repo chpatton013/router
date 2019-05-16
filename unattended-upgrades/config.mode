@@ -1,3 +1,0 @@
-config.d/etc/apt/listchanges.conf 644
-config.d/etc/apt/apt.conf.d/20auto-upgrades 644
-config.d/etc/apt/apt.conf.d/50unattended-upgrades 644

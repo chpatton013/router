@@ -17,4 +17,4 @@ chown ntp:ntp "$tmpfile"
 chmod 644 "$tmpfile"
 
 echo Overwrite the old leap seconds listing.
-mv "$tmpfile" ${LEAP_SECONDS_FILE}
+mv "$tmpfile" {{LEAP_SECONDS_FILE}}
