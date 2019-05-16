@@ -1,0 +1,25 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+allow-hotplug {{WAN_INTERFACE}}
+iface {{WAN_INTERFACE}} inet dhcp
+
+allow-hotplug {{LAN_INTERFACE_1}
+iface {{LAN_INTERFACE_1}} inet manual
+
+allow-hotplug {{LAN_INTERFACE_2}
+iface {{LAN_INTERFACE_2}} inet manual
+
+auto {{BRIDGE_INTERFACE}}
+iface {{BRIDGE_INTERFACE}} inet static
+  bridge_ports {{LAN_INTERFACE_1}} {{LAN_INTERFACE_2}}
+  bridge_stp on
+  address {{BRIDGE_ADDRESS}}
+  netmask {{BRIDGE_NETMASK}}

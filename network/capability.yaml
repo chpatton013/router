@@ -1,0 +1,16 @@
+packages:
+- bridge-utils
+vars:
+  WAN_INTERFACE: enp0s3
+  LAN_INTERFACE_1: enp0s8
+  LAN_INTERFACE_2: enp0s9
+  BRIDGE_INTERFACE: br0
+  BRIDGE_ADDRESS: 10.255.0.1
+  BRIDGE_NETMASK: 255.255.252.0
+files:
+  /etc/network/interfaces:
+    mode: 644
+    user: root
+    group: root
+services:
+- networking.service
