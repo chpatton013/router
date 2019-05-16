@@ -1,0 +1,32 @@
+packages:
+- isc-dhcp-server
+vars:
+  BROADCAST_ADDRESS: 10.255.0.255
+  CONFIG_FILE: /etc/dhcp/dhcpd.conf
+  DOMAIN_NAME: home.chrispatton.dev
+  DOMAIN_NAME_SERVERS: 10.255.0.1
+  DOMAIN_SEARCH: home.chrispatton.dev
+  INTERFACES: br0
+  KNOWN_HOSTS_RANGE: 10.255.1.1 10.255.1.255
+  NTP_SERVERS: 10.255.0.1
+  ROUTERS: 10.255.0.1
+  STATIC_HOSTS: "
+    host static_routee {
+      hardware ethernet 08:00:27:2a:bb:d5;
+      fixed-address 10.255.1.1;
+    }
+    "
+  SUBNET_ADDRESS: 10.255.0.0
+  SUBNET_NETMASK: 255.255.252.0
+  UNKNOWN_HOSTS_RANGE: 10.255.2.1 10.255.2.255
+files:
+  "{{CONFIG_FILE}}":
+    mode: 644
+    user: root
+    group: root
+  /etc/default/isc-dhcp-server:
+    mode: 644
+    user: root
+    group: root
+services:
+- isc-dhcp-server.service
